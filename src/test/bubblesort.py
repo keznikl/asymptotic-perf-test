@@ -1,10 +1,10 @@
 import math
-from base import Performance, ArgLenFactor
+from pythonperf.base import Performance, ArgLenFactor
 #from pylab import plot, show
 import random
 import unittest
 
-@Performance(factor=ArgLenFactor(), scale="O(1000) < 85 * O(100)")
+@Performance(factor=ArgLenFactor(0), scale="O(1000) < 100 * O(100)")
 def bubble_sort(l):
     for i in xrange(len(l)-1):
         for j in xrange(len(l)-1-i):

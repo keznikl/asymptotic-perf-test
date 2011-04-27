@@ -36,13 +36,19 @@ class PerformanceFunctor:
                 self.upper_scale = int(m.group(1))
                 self.multiply_scale = int(m.group(2))
                 self.lower_scale = int(m.group(3))
+                #sys.stderr.write("Performance scale: upper scale %d, lower scale %d, multiplier %d\n" % (
+                #                 self.upper_scale, self.lower_scale, self.multiply_scale))
+            else:
+                raise Exception("The given scale strinf does not match any supported format")
+
     def measure_run_time(self, args):
-        print "Calling function %s\n" % self.f
-        start = time.time()
+        #print "Calling function %s\n" % self.f
+        start = time.clock()
         self.f(*args)
-        duration = time.time() - start
-        print "Call finished in %f seconds\n" % duration
+        duration = time.clock() - start
+        #print "Call finished in %f seconds\n" % duration
         return duration
+
     def test_sequence(self, input_generator):
         input_sizes = xrange(self.lower,self.upper,self.step)
         times = [
@@ -50,15 +56,19 @@ class PerformanceFunctor:
             for n in input_sizes
         ]
         return False
+
     def test_scale(self, input_generator):
         if self.lower_scale is None or self.upper_scale is None or self.multiply_scale is None:
             return False
         res_lower = self.measure_run_time(input_generator(self.lower_scale))
         res_upper = self.measure_run_time(input_generator(self.upper_scale))
-        ret = res_upper < self.multiply_scale * res_lower
+        max_upper = self.multiply_scale * res_lower
+        ret = res_upper < max_upper
         if not ret:
-            sys.stderr.write("Scale test '%s' for '%s' not passed, maximal for upper size: %f, measured: %f\n"
-                             % (self.scale, self.f, self.multiply_scale * res_lower, res_upper))
+            sys.stderr.write("Scale test '%s' for '%s' failed, max for upper bound: %f, measured: %f\n"
+                             % (self.scale, self.f.__name__, max_upper, res_upper))
+        else:
+            print "Scale test '%s' for '%s' passed" % (self.scale, self.f.__name__)
         return ret
     def __call__(self, *args, **kwargs):
         self.f(args, kwargs)
