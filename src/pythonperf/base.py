@@ -10,8 +10,15 @@ def plot_times(func, generate_args, plot_sequence):
   ]
 
 
+def measure_run_time(f, args):
+    start = time.clock()
+    f(*args)
+    duration = time.clock() - start
+    return duration
+
 class Factor:
     pass
+
 
 class ArgLenFactor(Factor):
     def __init__(self, idx=0):
@@ -19,35 +26,81 @@ class ArgLenFactor(Factor):
     def __call__(self, *args, **kwargs):
         return len(args[self.idx])
 
+
+class Scale:
+    def test_scale(self, f, input_generator):
+        """
+        Returns True if the methods meets the scale requirements.
+        """
+        pass
+
+    @classmethod
+    def create(cls, scale):
+        """
+        Factory method. Returns None if the given string does not match this scale type.
+        """
+        return None
+
+
+class ComparisonScale(Scale):
+    regexp = '\s*O\((\d+)\)\s*<\s*(\d+)\s*\*\s*O\((\d+)\)\s*'
+
+    def __init__(self, scale_str, upper_scale, lower_scale, multiply_scale):
+        self.upper_scale = upper_scale
+        self.multiply_scale = multiply_scale
+        self.lower_scale = lower_scale
+        self.scale_str = scale_str
+
+    @classmethod
+    def create(cls, scale):
+        m = re.match(cls.regexp, scale)
+        if m is not None:
+            return ComparisonScale(
+                scale_str = scale,
+                upper_scale = int(m.group(1)),
+                multiply_scale = int(m.group(2)),
+                lower_scale = int(m.group(3))
+            )
+        else:
+            return None
+
+    def test_scale(self, f, input_generator):
+        if self.lower_scale is None or self.upper_scale is None or self.multiply_scale is None:
+            return False
+
+        res_lower = measure_run_time(f, input_generator(self.lower_scale))
+        res_upper = measure_run_time(f, input_generator(self.upper_scale))
+        max_upper = self.multiply_scale * res_lower
+        ret = res_upper < max_upper
+
+        if not ret:
+            sys.stderr.write("Scale test '%s' for '%s' failed, max for upper bound: %f, measured: %f\n"
+                             % (self.scale_str, f.__name__, max_upper, res_upper))
+        else:
+            print "Scale test '%s' for '%s' passed" % (self.scale_str, f.__name__)
+
+        return ret
+
+
+class ScaleFactory:
+    scales = [ComparisonScale]
+
+    @classmethod
+    def get_scale(cls, scale):
+        """
+        Returns the scale object for the given scale string.
+        """
+        for s in cls.scales:
+            instance = s.create(scale)
+            if instance is not None:
+                return instance
+        return None
+
+
 class PerformanceFunctor:
     def __init__(self, f, factor=None, scale=None):
         self.f = f
-        self.lower = 1000
-        self.upper = 5000
-        self.step = 1000
-        self.factor = factor
-        self.scale = scale
-        self.upper_scale = None
-        self.multiply_scale = None
-        self.lower_scale = None
-        if scale is not None:
-            m = re.match('\s*O\((\d+)\)\s*<\s*(\d+)\s*\*\s*O\((\d+)\)\s*', scale)
-            if m is not None:
-                self.upper_scale = int(m.group(1))
-                self.multiply_scale = int(m.group(2))
-                self.lower_scale = int(m.group(3))
-                #sys.stderr.write("Performance scale: upper scale %d, lower scale %d, multiplier %d\n" % (
-                #                 self.upper_scale, self.lower_scale, self.multiply_scale))
-            else:
-                raise Exception("The given scale strinf does not match any supported format")
-
-    def measure_run_time(self, args):
-        #print "Calling function %s\n" % self.f
-        start = time.clock()
-        self.f(*args)
-        duration = time.clock() - start
-        #print "Call finished in %f seconds\n" % duration
-        return duration
+        self.scale = ScaleFactory.get_scale(scale)
 
     def test_sequence(self, input_generator):
         input_sizes = xrange(self.lower,self.upper,self.step)
@@ -58,20 +111,16 @@ class PerformanceFunctor:
         return False
 
     def test_scale(self, input_generator):
-        if self.lower_scale is None or self.upper_scale is None or self.multiply_scale is None:
+        if self.scale is None:
             return False
-        res_lower = self.measure_run_time(input_generator(self.lower_scale))
-        res_upper = self.measure_run_time(input_generator(self.upper_scale))
-        max_upper = self.multiply_scale * res_lower
-        ret = res_upper < max_upper
-        if not ret:
-            sys.stderr.write("Scale test '%s' for '%s' failed, max for upper bound: %f, measured: %f\n"
-                             % (self.scale, self.f.__name__, max_upper, res_upper))
-        else:
-            print "Scale test '%s' for '%s' passed" % (self.scale, self.f.__name__)
-        return ret
+        result = self.scale.test_scale(self.f, input_generator)
+        if hasattr(self.f, 'test_scale'):
+            result = result and self.f.test_scale(input_generator)
+        return result
+
     def __call__(self, *args, **kwargs):
         self.f(args, kwargs)
+
 
 class Performance:
     def __init__(self,scale=None, factor=None):
