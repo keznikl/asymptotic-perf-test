@@ -9,11 +9,13 @@ def plot_times(func, generate_args, plot_sequence):
     for n in plot_sequence
   ]
 
-
+TIME_CONST = 1000000
 def measure_run_time(f, args):
-    start = time.clock()
+    start = time.time()
     f(*args)
-    duration = time.clock() - start
+    end = time.time()
+    duration = (end - start) * TIME_CONST
+    #print "measuring %s duration %s microseconds" % (f.__name__, duration)
     return duration
 
 class Factor:
@@ -101,25 +103,13 @@ class PerformanceFunctor:
     def __init__(self, f, factor=None, scale=None):
         self.f = f
         self.scale = ScaleFactory.get_scale(scale)
+        self.__name__ = self.f.__name__
 
-    def test_sequence(self, input_generator):
-        input_sizes = xrange(self.lower,self.upper,self.step)
-        times = [
-            self.measure_run_time(input_generator(n+1))
-            for n in input_sizes
-        ]
-        return False
-
-    def test_scale(self, input_generator):
-        if self.scale is None:
-            return False
-        result = self.scale.test_scale(self.f, input_generator)
-        if hasattr(self.f, 'test_scale'):
-            result = result and self.f.test_scale(input_generator)
-        return result
+    def get_function(self):
+        return self.f
 
     def __call__(self, *args, **kwargs):
-        self.f(args, kwargs)
+        self.f(*args, **kwargs)
 
 
 class Performance:

@@ -3,8 +3,9 @@ from pythonperf.base import Performance, ArgLenFactor
 #from pylab import plot, show
 import random
 import unittest
+from pythonperf.tester import ScaleTester
 
-@Performance(factor=ArgLenFactor(0), scale="O(1000) < 100 * O(100)")
+@Performance(factor=ArgLenFactor(0), scale="O(1000) < 10000 * O(1)")
 def bubble_sort(l):
     for i in xrange(len(l)-1):
         for j in xrange(len(l)-1-i):
@@ -22,7 +23,7 @@ def gen_args_for_sort(list_length):
 
 class BubbleTest(unittest.TestCase):
     def testBubbleScale(self):
-        self.assertTrue(bubble_sort.test_scale(gen_args_for_sort), "The bubble sort perf test failed")
+        self.assertTrue(ScaleTester.test_scale(bubble_sort, gen_args_for_sort), "The bubble sort perf test failed")
 
 #if __name__ == '__main__':
 #    unittest.main()
