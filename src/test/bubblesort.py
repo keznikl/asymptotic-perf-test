@@ -1,11 +1,9 @@
-import math
-from pythonperf.base import Performance, ArgLenFactor
-#from pylab import plot, show
+from pythonperf.base import Performance, ArgLenFactor, measure_run_time
 import random
 import unittest
-from pythonperf.tester import ScaleTester
+from pythonperf.tester import ScaleTester, RegressionTester, GraphTester, GraphTester
 
-@Performance(factor=ArgLenFactor(0), scale="O(1000) < 10000 * O(1)")
+@Performance(factor=ArgLenFactor(0), scale="O(1000) < 1000 * O(100)")
 def bubble_sort(l):
     for i in xrange(len(l)-1):
         for j in xrange(len(l)-1-i):
@@ -24,11 +22,10 @@ def gen_args_for_sort(list_length):
 class BubbleTest(unittest.TestCase):
     def testBubbleScale(self):
         self.assertTrue(ScaleTester.test_scale(bubble_sort, gen_args_for_sort), "The bubble sort perf test failed")
+    def testBubbleRegression(self):
+        self.assertTrue(RegressionTester.test_scale(bubble_sort, gen_args_for_sort), "The bubble sort regressions test failed")
+    def testBubbleGraph(self):
+        self.assertTrue(GraphTester.test_scale(bubble_sort, gen_args_for_sort), "The bubble sort regressions test failed")
 
-#if __name__ == '__main__':
-#    unittest.main()
-
-#times = xrange(1000,6000,100)
-#values = plot_times(bubble_sort, gen_args_for_sort, times)
-#plot(times, [time for (num, time) in values])                                                                                  -
-#show()
+if __name__ == '__main__':
+    unittest.main()
